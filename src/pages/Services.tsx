@@ -8,8 +8,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Brain, 
-  FirstAid, 
-  Virus, 
+  Stethoscope, 
+  Ambulance, 
   Heart, 
   Baby, 
   AlertCircle 
@@ -25,13 +25,13 @@ const services = [
   {
     title: "First Aid",
     description: "Learn about emergency first aid procedures, wound care, burns treatment, and more.",
-    icon: FirstAid,
+    icon: Stethoscope,
     category: "first-aid"
   },
   {
     title: "COVID-19 Information",
     description: "Stay updated with the latest COVID-19 guidelines, symptoms, and preventive measures.",
-    icon: Virus,
+    icon: Ambulance,
     category: "covid"
   },
   {
