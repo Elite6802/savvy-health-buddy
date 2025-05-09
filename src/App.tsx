@@ -13,6 +13,7 @@ import Chat from "./pages/Chat";
 import Services from "./pages/Services";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/chat" element={<Chat />} />
             <Route path="/services" element={<Services />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

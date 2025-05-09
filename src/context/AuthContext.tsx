@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from 'react-router-dom';
@@ -112,7 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           description: "Welcome back to HealthMate AI!"
         });
         
-        navigate('/profile');
+        navigate('/dashboard'); // Changed from '/profile' to '/dashboard'
       }
     } catch (error) {
       const authError = error as AuthError;

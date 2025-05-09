@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { LayoutDashboard } from "lucide-react";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -86,6 +86,17 @@ const Navbar = () => {
             </Link>
             {isLoggedIn && (
               <>
+                <Link
+                  to="/dashboard"
+                  className={`text-sm font-medium flex items-center gap-1 ${
+                    location.pathname === "/dashboard"
+                      ? "text-healthmate-400"
+                      : "text-gray-600 dark:text-gray-200 hover:text-healthmate-400 dark:hover:text-healthmate-400"
+                  }`}
+                >
+                  <LayoutDashboard size={16} />
+                  Dashboard
+                </Link>
                 <Link
                   to="/services"
                   className={`text-sm font-medium ${
@@ -188,6 +199,14 @@ const Navbar = () => {
           </Link>
           {isLoggedIn && (
             <>
+              <Link
+                to="/dashboard"
+                className="block text-sm font-medium text-gray-600 dark:text-gray-200 hover:text-healthmate-400 dark:hover:text-healthmate-400 flex items-center gap-1"
+                onClick={toggleMenu}
+              >
+                <LayoutDashboard size={16} />
+                Dashboard
+              </Link>
               <Link
                 to="/services"
                 className="block text-sm font-medium text-gray-600 dark:text-gray-200 hover:text-healthmate-400 dark:hover:text-healthmate-400"
