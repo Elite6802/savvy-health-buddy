@@ -1,145 +1,258 @@
 
-// This is a mock hook to simulate Supabase functionality
-// In a real app, this would use the actual Supabase client
+import { supabase, Profile, Message, ChatSession, ContactForm } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
-// Generic type for storage item
-type StorageItem = {
-  id: string;
-  [key: string]: any;
+// Generic type for database operations
+type DatabaseResult<T> = {
+  data: T | null;
+  error: Error | null;
 };
 
 const useSupabase = () => {
-  // Mock database storage
-  const [mockDb, setMockDb] = useState<{
-    [table: string]: StorageItem[];
-  }>({
-    profiles: [],
-    messages: [],
-    chatSessions: [],
-    contactForms: [],
-  });
+  const { user } = useAuth();
+  const [loading, setLoading] = useState<boolean>(false);
 
-  // Mock function for inserting data
-  const insert = async<T extends StorageItem>(
-    table: string, 
-    data: Omit<T, 'id'>
-  ): Promise<T> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    const id = Math.random().toString(36).substring(2, 15);
-    const newItem = { ...data, id } as T;
-    
-    setMockDb((prev) => ({
-      ...prev,
-      [table]: [...(prev[table] || []), newItem],
-    }));
-    
-    return newItem;
-  };
+  // Profile operations
+  const getProfile = async (): Promise<DatabaseResult<Profile>> => {
+    try {
+      setLoading(true);
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
 
-  // Mock function for selecting data
-  const select = async<T extends StorageItem>(
-    table: string, 
-    query?: { column: string; value: any }
-  ): Promise<T[]> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    const items = mockDb[table] || [];
-    
-    if (query) {
-      return items.filter((item) => item[query.column] === query.value) as T[];
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error getting profile:', error);
+      return { data: null, error: error as Error };
+    } finally {
+      setLoading(false);
     }
-    
-    return items as T[];
   };
 
-  // Mock function for updating data
-  const update = async<T extends StorageItem>(
-    table: string, 
-    id: string, 
-    data: Partial<T>
-  ): Promise<T> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    let updated: T | null = null;
-    
-    setMockDb((prev) => {
-      const tableData = prev[table] || [];
-      const updatedTable = tableData.map((item) => {
-        if (item.id === id) {
-          updated = { ...item, ...data } as T;
-          return updated;
-        }
-        return item;
-      });
-      
-      return {
-        ...prev,
-        [table]: updatedTable,
-      };
-    });
-    
-    if (!updated) {
-      throw new Error(`Item with id ${id} not found in table ${table}`);
+  const updateProfile = async (profile: Partial<Profile>): Promise<DatabaseResult<Profile>> => {
+    try {
+      setLoading(true);
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(profile)
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return { data: null, error: error as Error };
+    } finally {
+      setLoading(false);
     }
-    
-    return updated;
   };
 
-  // Mock function for deleting data
-  const remove = async(
-    table: string, 
-    id: string
-  ): Promise<void> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    setMockDb((prev) => {
-      const tableData = prev[table] || [];
-      const updatedTable = tableData.filter((item) => item.id !== id);
-      
-      return {
-        ...prev,
-        [table]: updatedTable,
+  // Message operations
+  const saveMessage = async (content: string, isAI: boolean, category: string, sessionId: string): Promise<DatabaseResult<Message>> => {
+    try {
+      setLoading(true);
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      const message: Partial<Message> = {
+        user_id: user.id,
+        content,
+        is_ai: isAI,
+        category,
+        session_id: sessionId,
       };
-    });
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert([message])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error saving message:', error);
+      return { data: null, error: error as Error };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Mock file storage
-  const storage = {
-    uploadFile: async (bucket: string, path: string, file: File): Promise<string> => {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Create a mock URL
-      const url = URL.createObjectURL(file);
-      
-      return url;
-    },
-    
-    getPublicUrl: (bucket: string, path: string): string => {
-      return `https://mockbucket/${bucket}/${path}`;
-    },
-    
-    removeFile: async (bucket: string, path: string): Promise<void> => {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      // Nothing to do in the mock implementation
+  const getMessages = async (sessionId: string): Promise<DatabaseResult<Message[]>> => {
+    try {
+      setLoading(true);
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error getting messages:', error);
+      return { data: null, error: error as Error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Chat session operations
+  const createChatSession = async (category: string, title: string): Promise<DatabaseResult<ChatSession>> => {
+    try {
+      setLoading(true);
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      const session: Partial<ChatSession> = {
+        id: uuidv4(),
+        user_id: user.id,
+        category,
+        title,
+      };
+
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert([session])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error creating chat session:', error);
+      return { data: null, error: error as Error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getChatSessions = async (): Promise<DatabaseResult<ChatSession[]>> => {
+    try {
+      setLoading(true);
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error getting chat sessions:', error);
+      return { data: null, error: error as Error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Contact form operations
+  const submitContactForm = async (name: string, email: string, message: string): Promise<DatabaseResult<ContactForm>> => {
+    try {
+      setLoading(true);
+
+      const contactForm: Partial<ContactForm> = {
+        name,
+        email,
+        message,
+      };
+
+      const { data, error } = await supabase
+        .from('contact_forms')
+        .insert([contactForm])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      return { data: null, error: error as Error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Storage operations
+  const uploadAvatar = async (file: File): Promise<string | null> => {
+    try {
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      return null;
     }
   };
 
   return {
-    db: {
-      insert,
-      select,
-      update,
-      remove,
+    loading,
+    profile: {
+      get: getProfile,
+      update: updateProfile,
     },
-    storage,
+    messages: {
+      save: saveMessage,
+      getAll: getMessages,
+    },
+    chatSessions: {
+      create: createChatSession,
+      getAll: getChatSessions,
+    },
+    contact: {
+      submit: submitContactForm,
+    },
+    storage: {
+      uploadAvatar,
+    },
   };
 };
 

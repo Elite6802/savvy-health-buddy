@@ -2,24 +2,17 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from 'react-router-dom';
-
-type User = {
-  id: string;
-  email: string;
-  name: string;
-  age?: number;
-  gender?: string;
-  location?: string;
-  avatar_url?: string;
-};
+import { supabase, Profile } from '@/lib/supabase';
+import { User, AuthError } from '@supabase/supabase-js';
 
 interface AuthContextType {
-  user: User | null;
+  user: Profile | null;
+  supabaseUser: User | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string, age?: number, gender?: string, location?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (profile: Partial<User>) => Promise<void>;
+  updateProfile: (profile: Partial<Profile>) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -27,12 +20,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<Profile | null>(null);
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Mock auth functions - would be replaced with actual Supabase auth calls
   const signUp = async (
     email: string, 
     password: string, 
@@ -44,37 +37,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       
-      // This would be a Supabase createUser call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful signup
-      const newUser: User = {
-        id: Math.random().toString(36).substring(2, 15),
+      // Sign up with Supabase
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name,
-        age,
-        gender,
-        location,
-      };
-      
-      // Store in local storage for demo purposes
-      localStorage.setItem('healthmate-user', JSON.stringify(newUser));
-      localStorage.setItem('healthmate-token', 'mock-auth-token');
-      
-      setUser(newUser);
-      
-      toast({
-        title: "Account created successfully",
-        description: "Welcome to HealthMate AI!"
+        password,
       });
       
-      navigate('/profile');
+      if (error) throw error;
+      
+      if (data.user) {
+        // Create profile in profiles table
+        const newProfile: Partial<Profile> = {
+          id: data.user.id,
+          email,
+          name,
+          age,
+          gender,
+          location,
+        };
+        
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([newProfile]);
+          
+        if (profileError) throw profileError;
+        
+        toast({
+          title: "Account created successfully",
+          description: "Please check your email for verification link."
+        });
+        
+        navigate('/login');
+      }
     } catch (error) {
-      console.error('Error signing up:', error);
+      const authError = error as AuthError;
+      console.error('Error signing up:', authError);
       toast({
         title: "Signup failed",
-        description: "There was a problem creating your account",
+        description: authError.message || "There was a problem creating your account",
         variant: "destructive"
       });
     } finally {
@@ -86,37 +86,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       
-      // This would be a Supabase signIn call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful login
-      const mockUser: User = {
-        id: "123456",
+      // Sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name: "Demo User",
-        age: 30,
-        gender: "prefer-not-to-say",
-        location: "New York",
-      };
-      
-      // Store in local storage for demo purposes
-      localStorage.setItem('healthmate-user', JSON.stringify(mockUser));
-      localStorage.setItem('healthmate-token', 'mock-auth-token');
-      
-      setUser(mockUser);
-      
-      toast({
-        title: "Logged in successfully",
-        description: "Welcome back to HealthMate AI!"
+        password,
       });
       
-      navigate('/profile');
+      if (error) throw error;
+      
+      if (data.user) {
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+          
+        if (profileError) throw profileError;
+        
+        setUser(profileData);
+        setSupabaseUser(data.user);
+        
+        toast({
+          title: "Logged in successfully",
+          description: "Welcome back to HealthMate AI!"
+        });
+        
+        navigate('/profile');
+      }
     } catch (error) {
-      console.error('Error signing in:', error);
+      const authError = error as AuthError;
+      console.error('Error signing in:', authError);
       toast({
         title: "Login failed",
-        description: "Invalid email or password",
+        description: authError.message || "Invalid email or password",
         variant: "destructive"
       });
     } finally {
@@ -128,15 +131,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       
-      // This would be a Supabase signOut call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const { error } = await supabase.auth.signOut();
       
-      // Remove from local storage
-      localStorage.removeItem('healthmate-user');
-      localStorage.removeItem('healthmate-token');
+      if (error) throw error;
       
       setUser(null);
+      setSupabaseUser(null);
       
       toast({
         title: "Logged out successfully",
@@ -145,10 +145,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       navigate('/');
     } catch (error) {
-      console.error('Error signing out:', error);
+      const authError = error as AuthError;
+      console.error('Error signing out:', authError);
       toast({
         title: "Logout failed",
-        description: "There was a problem logging out",
+        description: authError.message || "There was a problem logging out",
         variant: "destructive"
       });
     } finally {
@@ -156,27 +157,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateProfile = async (profile: Partial<User>) => {
+  const updateProfile = async (profile: Partial<Profile>) => {
     try {
       setLoading(true);
       
-      // This would be a Supabase updateUser call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!supabaseUser) throw new Error("User not authenticated");
       
-      // Update local user
-      if (user) {
-        const updatedUser = { ...user, ...profile };
-        setUser(updatedUser);
+      // Update profile in profiles table
+      const { error } = await supabase
+        .from('profiles')
+        .update(profile)
+        .eq('id', supabaseUser.id);
         
-        // Update in local storage
-        localStorage.setItem('healthmate-user', JSON.stringify(updatedUser));
-        
-        toast({
-          title: "Profile updated",
-          description: "Your profile has been updated successfully"
-        });
-      }
+      if (error) throw error;
+      
+      // Update local user state
+      setUser(prev => prev ? { ...prev, ...profile } : null);
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully"
+      });
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
@@ -193,19 +194,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       
-      // This would be a Supabase updatePassword call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.updateUser({
+        password
+      });
+      
+      if (error) throw error;
       
       toast({
         title: "Password updated",
         description: "Your password has been updated successfully"
       });
     } catch (error) {
-      console.error('Error updating password:', error);
+      const authError = error as AuthError;
+      console.error('Error updating password:', authError);
       toast({
         title: "Update failed",
-        description: "There was a problem updating your password",
+        description: authError.message || "There was a problem updating your password",
         variant: "destructive"
       });
     } finally {
@@ -217,19 +221,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       
-      // This would be a Supabase resetPassword call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/reset-password',
+      });
+      
+      if (error) throw error;
       
       toast({
         title: "Password reset email sent",
         description: "Check your inbox for a link to reset your password"
       });
     } catch (error) {
-      console.error('Error resetting password:', error);
+      const authError = error as AuthError;
+      console.error('Error resetting password:', authError);
       toast({
         title: "Reset failed",
-        description: "There was a problem sending the password reset email",
+        description: authError.message || "There was a problem sending the password reset email",
         variant: "destructive"
       });
     } finally {
@@ -241,11 +248,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const storedUser = localStorage.getItem('healthmate-user');
-        const token = localStorage.getItem('healthmate-token');
+        // Get session from Supabase
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (storedUser && token) {
-          setUser(JSON.parse(storedUser));
+        if (error) throw error;
+        
+        if (session?.user) {
+          setSupabaseUser(session.user);
+          
+          // Fetch user profile
+          const { data, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (!profileError) {
+            setUser(data);
+          }
         }
       } catch (error) {
         console.error('Error checking auth:', error);
@@ -255,12 +275,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     
     checkAuth();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSupabaseUser(session?.user || null);
+        
+        if (session?.user) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (!error) {
+            setUser(data);
+          }
+        } else {
+          setUser(null);
+        }
+        
+        setLoading(false);
+      }
+    );
+    
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        supabaseUser,
         loading,
         signUp,
         signIn,
