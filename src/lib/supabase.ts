@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Default values for local development - these won't work in production
 // Replace these with your Supabase project URL and anon key
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://example.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://dsmeokzfaspdlmijnrnj.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzbWVva3pmYXNwZGxtaWpucm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3ODEwMDEsImV4cCI6MjA2MjM1NzAwMX0.ss0xACSAQh0wuAUHu4gkbHwddMbk_CkVxcKJf2A6N_8';
 
 // Log warning if environment variables are missing
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
