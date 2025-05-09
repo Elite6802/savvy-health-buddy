@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -92,14 +91,12 @@ const Help = () => {
     try {
       setIsSubmitting(true);
       
-      // Submit contact form to database
-      await supabase.db.insert("contactForms", {
-        name: values.name,
-        email: values.email,
-        subject: values.subject,
-        message: values.message,
-        created_at: new Date().toISOString(),
-      });
+      // Submit contact form to database using the contact.submit method
+      await supabase.contact.submit(
+        values.name,
+        values.email,
+        values.message
+      );
       
       form.reset();
       

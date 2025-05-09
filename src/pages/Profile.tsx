@@ -134,21 +134,21 @@ const Profile = () => {
       }
 
       const file = event.target.files[0];
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user?.id}.${fileExt}`;
       
       setUploading(true);
 
-      // Upload avatar to storage
-      const url = await supabase.storage.uploadFile("avatars", fileName, file);
+      // Upload avatar using the uploadAvatar method from our hook
+      const url = await supabase.storage.uploadAvatar(file);
       
       // Update user profile with new avatar URL
-      setAvatarUrl(url);
-
-      toast({
-        title: "Avatar updated",
-        description: "Your profile picture has been updated successfully",
-      });
+      if (url) {
+        setAvatarUrl(url);
+        
+        toast({
+          title: "Avatar updated",
+          description: "Your profile picture has been updated successfully",
+        });
+      }
     } catch (error) {
       console.error("Avatar upload failed:", error);
       toast({
