@@ -14,7 +14,8 @@ import {
   Volume2,
   Volume, 
   XCircle, 
-  Check
+  Check,
+  ArrowLeft
 } from "lucide-react";
 
 const Chat = () => {
@@ -98,11 +99,21 @@ const Chat = () => {
         <div className="container-custom h-full">
           <div className="flex flex-col h-[calc(100vh-12rem)]">
             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-healthmate-700 dark:text-white">
-                {category === "general" 
-                  ? "Chat with HealthMate AI" 
-                  : `${category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')} Support`}
-              </h1>
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => navigate('/dashboard')}
+                  title="Back to Dashboard"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h1 className="text-2xl font-bold text-healthmate-700 dark:text-white">
+                  {category === "general" 
+                    ? "Chat with HealthMate AI" 
+                    : `${category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')} Support`}
+                </h1>
+              </div>
               <div className="flex items-center">
                 <Button
                   variant="outline"

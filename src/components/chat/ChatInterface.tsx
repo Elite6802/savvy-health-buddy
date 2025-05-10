@@ -30,7 +30,7 @@ const ChatInterface = ({ category = "general" }: ChatInterfaceProps) => {
     const initialMessage = {
       id: "welcome",
       text: `Hello! I'm your HealthMate AI assistant. How can I help you with ${category === "general" ? "your health questions" : category.replace('-', ' ') + " related questions"}?`,
-      sender: "ai",
+      sender: "ai" as const,
       timestamp: new Date(),
     };
     
@@ -64,7 +64,6 @@ const ChatInterface = ({ category = "general" }: ChatInterfaceProps) => {
     
     try {
       // Call our AI function using Supabase Edge Function
-      // Note: This is a placeholder until we create the actual edge function
       const { data, error } = await supabase.functions.invoke('chat-gpt', {
         body: {
           prompt: input,
