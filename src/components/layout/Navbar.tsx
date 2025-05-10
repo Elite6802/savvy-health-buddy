@@ -1,30 +1,18 @@
+
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { LayoutDashboard } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // For demo purposes only, would be replaced with actual auth state
-  useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem("healthmate-token");
-      setIsLoggedIn(!!token);
-    };
-    
-    checkAuth();
-    window.addEventListener("storage", checkAuth);
-    
-    return () => {
-      window.removeEventListener("storage", checkAuth);
-    };
-  }, []);
+  const { user, signOut } = useAuth();
+  const isLoggedIn = !!user;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -42,13 +30,7 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("healthmate-token");
-    setIsLoggedIn(false);
-    toast({
-      title: "Logged out successfully",
-      description: "You have been logged out of your account",
-    });
-    // Would be replaced with actual auth logout
+    signOut();
   };
 
   const toggleMenu = () => {

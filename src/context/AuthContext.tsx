@@ -1,12 +1,15 @@
+
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from 'react-router-dom';
-import { supabase, Profile } from '@/lib/supabase';
-import { User, AuthError } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { Profile } from '@/lib/supabase';
+import { User, AuthError, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: Profile | null;
   supabaseUser: User | null;
+  session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string, age?: number, gender?: string, location?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
@@ -21,6 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<Profile | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -40,27 +44,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name,
+            age,
+            gender,
+            location
+          }
+        }
       });
       
       if (error) throw error;
       
+      // Check if user was created successfully
       if (data.user) {
-        // Create profile in profiles table
-        const newProfile: Partial<Profile> = {
-          id: data.user.id,
-          email,
-          name,
-          age,
-          gender,
-          location,
-        };
-        
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([newProfile]);
-          
-        if (profileError) throw profileError;
-        
         toast({
           title: "Account created successfully",
           description: "Please check your email for verification link."
@@ -94,24 +91,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       
       if (data.user) {
+        setSupabaseUser(data.user);
+        setSession(data.session);
+        
         // Fetch user profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
           
-        if (profileError) throw profileError;
-        
-        setUser(profileData);
-        setSupabaseUser(data.user);
+        if (!profileError && profileData) {
+          setUser(profileData);
+        } else {
+          // Create a profile if it doesn't exist
+          const newProfile: Partial<Profile> = {
+            id: data.user.id,
+            email: data.user.email || '',
+            name: data.user.user_metadata.name || '',
+            age: data.user.user_metadata.age,
+            gender: data.user.user_metadata.gender,
+            location: data.user.user_metadata.location,
+          };
+          
+          const { data: insertedProfile, error: insertError } = await supabase
+            .from('profiles')
+            .upsert(newProfile)
+            .select()
+            .single();
+            
+          if (!insertError && insertedProfile) {
+            setUser(insertedProfile);
+          }
+        }
         
         toast({
           title: "Logged in successfully",
           description: "Welcome back to HealthMate AI!"
         });
         
-        navigate('/dashboard'); // Changed from '/profile' to '/dashboard'
+        navigate('/dashboard');
       }
     } catch (error) {
       const authError = error as AuthError;
@@ -136,6 +155,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       setUser(null);
       setSupabaseUser(null);
+      setSession(null);
       
       toast({
         title: "Logged out successfully",
@@ -165,8 +185,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Update profile in profiles table
       const { error } = await supabase
         .from('profiles')
-        .update(profile)
-        .eq('id', supabaseUser.id);
+        .upsert({
+          id: supabaseUser.id,
+          ...profile
+        });
         
       if (error) throw error;
       
@@ -221,7 +243,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/reset-password',
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       
       if (error) throw error;
@@ -245,51 +267,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Check for existing session on mount
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Get session from Supabase
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-        
-        if (session?.user) {
-          setSupabaseUser(session.user);
-          
-          // Fetch user profile
-          const { data, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (!profileError) {
-            setUser(data);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking auth:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkAuth();
-    
-    // Listen for auth state changes
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSupabaseUser(session?.user || null);
+      async (event, currentSession) => {
+        // Only synchronous state updates here
+        setSession(currentSession);
+        setSupabaseUser(currentSession?.user || null);
         
-        if (session?.user) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (!error) {
-            setUser(data);
-          }
+        // Defer Supabase calls with setTimeout
+        if (currentSession?.user) {
+          setTimeout(async () => {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', currentSession.user.id)
+              .maybeSingle();
+              
+            if (!error && data) {
+              setUser(data);
+            } else {
+              // Try to create a profile from user metadata
+              const newProfile: Partial<Profile> = {
+                id: currentSession.user.id,
+                email: currentSession.user.email || '',
+                name: currentSession.user.user_metadata.name || '',
+              };
+              
+              const { data: insertedProfile } = await supabase
+                .from('profiles')
+                .upsert(newProfile)
+                .select()
+                .maybeSingle();
+                
+              if (insertedProfile) {
+                setUser(insertedProfile);
+              }
+            }
+          }, 0);
         } else {
           setUser(null);
         }
@@ -297,6 +311,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       }
     );
+    
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setSupabaseUser(currentSession?.user ?? null);
+      
+      if (currentSession?.user) {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentSession.user.id)
+          .maybeSingle()
+          .then(({ data, error }) => {
+            if (!error && data) {
+              setUser(data);
+            }
+            setLoading(false);
+          });
+      } else {
+        setLoading(false);
+      }
+    });
     
     // Cleanup subscription
     return () => {
@@ -309,6 +345,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         user,
         supabaseUser,
+        session,
         loading,
         signUp,
         signIn,
