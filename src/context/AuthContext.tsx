@@ -102,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle();
           
         if (!profileError && profileData) {
-          setUser(profileData);
+          setUser(profileData as Profile);
         } else {
           // Create a profile if it doesn't exist
           const newProfile: Partial<Profile> = {
@@ -121,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .single();
             
           if (!insertError && insertedProfile) {
-            setUser(insertedProfile);
+            setUser(insertedProfile as Profile);
           }
         }
         
@@ -188,7 +188,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .upsert({
           id: supabaseUser.id,
           ...profile
-        });
+        } as any);
         
       if (error) throw error;
       
@@ -284,7 +284,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .maybeSingle();
               
             if (!error && data) {
-              setUser(data);
+              setUser(data as Profile);
             } else {
               // Try to create a profile from user metadata
               const newProfile: Partial<Profile> = {
@@ -295,12 +295,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               
               const { data: insertedProfile } = await supabase
                 .from('profiles')
-                .upsert(newProfile)
+                .upsert(newProfile as any)
                 .select()
                 .maybeSingle();
                 
               if (insertedProfile) {
-                setUser(insertedProfile);
+                setUser(insertedProfile as Profile);
               }
             }
           }, 0);
@@ -325,7 +325,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle()
           .then(({ data, error }) => {
             if (!error && data) {
-              setUser(data);
+              setUser(data as Profile);
             }
             setLoading(false);
           });

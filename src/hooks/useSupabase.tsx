@@ -30,7 +30,7 @@ const useSupabase = () => {
 
       if (error) throw error;
 
-      return { data, error: null };
+      return { data: data as Profile, error: null };
     } catch (error) {
       console.error('Error getting profile:', error);
       return { data: null, error: error as Error };
@@ -48,14 +48,14 @@ const useSupabase = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .update(profile)
+        .update(profile as any)
         .eq('id', user.id)
         .select()
         .single();
 
       if (error) throw error;
 
-      return { data, error: null };
+      return { data: data as Profile, error: null };
     } catch (error) {
       console.error('Error updating profile:', error);
       return { data: null, error: error as Error };
@@ -82,13 +82,13 @@ const useSupabase = () => {
 
       const { data, error } = await supabase
         .from('messages')
-        .insert([message])
+        .insert([message as any])
         .select()
         .single();
 
       if (error) throw error;
 
-      return { data, error: null };
+      return { data: data as Message, error: null };
     } catch (error) {
       console.error('Error saving message:', error);
       return { data: null, error: error as Error };
@@ -112,7 +112,7 @@ const useSupabase = () => {
 
       if (error) throw error;
 
-      return { data, error: null };
+      return { data: data as Message[], error: null };
     } catch (error) {
       console.error('Error getting messages:', error);
       return { data: null, error: error as Error };
@@ -138,13 +138,13 @@ const useSupabase = () => {
 
       const { data, error } = await supabase
         .from('chat_sessions')
-        .insert([session])
+        .insert([session as any])
         .select()
         .single();
 
       if (error) throw error;
 
-      return { data, error: null };
+      return { data: data as ChatSession, error: null };
     } catch (error) {
       console.error('Error creating chat session:', error);
       return { data: null, error: error as Error };
@@ -168,7 +168,7 @@ const useSupabase = () => {
 
       if (error) throw error;
 
-      return { data, error: null };
+      return { data: data as ChatSession[], error: null };
     } catch (error) {
       console.error('Error getting chat sessions:', error);
       return { data: null, error: error as Error };
@@ -190,13 +190,13 @@ const useSupabase = () => {
 
       const { data, error } = await supabase
         .from('contact_forms')
-        .insert([contactForm])
+        .insert([contactForm as any])
         .select()
         .single();
 
       if (error) throw error;
 
-      return { data, error: null };
+      return { data: data as ContactForm, error: null };
     } catch (error) {
       console.error('Error submitting contact form:', error);
       return { data: null, error: error as Error };
