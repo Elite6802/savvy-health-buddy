@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from 'react-router-dom';
@@ -94,35 +93,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSupabaseUser(data.user);
         setSession(data.session);
         
-        // Fetch user profile
-        const { data: profileData, error: profileError } = await supabase
+        // Create a profile if it doesn't exist
+        const newProfile = {
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata.name || '',
+          age: data.user.user_metadata.age,
+          gender: data.user.user_metadata.gender,
+          location: data.user.user_metadata.location,
+        };
+        
+        const { data: insertedProfile, error: insertError } = await supabase
           .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .maybeSingle();
+          .upsert(newProfile)
+          .select()
+          .single();
           
-        if (!profileError && profileData) {
-          setUser(profileData as Profile);
-        } else {
-          // Create a profile if it doesn't exist
-          const newProfile: Partial<Profile> = {
-            id: data.user.id,
-            email: data.user.email || '',
-            name: data.user.user_metadata.name || '',
-            age: data.user.user_metadata.age,
-            gender: data.user.user_metadata.gender,
-            location: data.user.user_metadata.location,
-          };
-          
-          const { data: insertedProfile, error: insertError } = await supabase
-            .from('profiles')
-            .upsert(newProfile)
-            .select()
-            .single();
-            
-          if (!insertError && insertedProfile) {
-            setUser(insertedProfile as Profile);
-          }
+        if (!insertError && insertedProfile) {
+          setUser(insertedProfile as Profile);
         }
         
         toast({
@@ -182,13 +170,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (!supabaseUser) throw new Error("User not authenticated");
       
+      // Ensure we're providing the required id and email fields
+      const updatedProfile = {
+        id: supabaseUser.id,
+        email: supabaseUser.email || '',
+        ...profile
+      };
+      
       // Update profile in profiles table
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: supabaseUser.id,
-          ...profile
-        } as any);
+        .upsert(updatedProfile);
         
       if (error) throw error;
       
@@ -287,7 +279,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setUser(data as Profile);
             } else {
               // Try to create a profile from user metadata
-              const newProfile: Partial<Profile> = {
+              const newProfile = {
                 id: currentSession.user.id,
                 email: currentSession.user.email || '',
                 name: currentSession.user.user_metadata.name || '',

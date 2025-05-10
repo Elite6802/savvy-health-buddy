@@ -6,7 +6,7 @@ import type { Database } from '@/integrations/supabase/types';
 export type Profile = {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   age?: number;
   gender?: string;
   location?: string;
@@ -15,6 +15,9 @@ export type Profile = {
   updated_at?: string;
 };
 
+// These types need to be aligned with the database schema
+// Since these tables don't exist yet, we're defining them here
+// They would need to be created in Supabase
 export type Message = {
   id: string;
   user_id: string;
