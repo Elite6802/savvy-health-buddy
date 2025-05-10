@@ -3,47 +3,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-
-// Mock AI responses for demo purposes - would be replaced with actual API calls
-const mockResponses = {
-  general: [
-    "I'm here to help with any health questions you have. What would you like to know?",
-    "That's an interesting question. Based on general health guidelines...",
-    "It's important to consult with a healthcare professional for personalized advice, but here's some general information..."
-  ],
-  "mental-health": [
-    "Mental health is just as important as physical health. How have you been feeling lately?",
-    "Practicing mindfulness and regular exercise can help manage stress and anxiety.",
-    "Many people experience similar challenges with their mental health. Have you considered speaking with a professional?"
-  ],
-  "first-aid": [
-    "For minor burns, cool the area with running water for at least 10 minutes.",
-    "If someone is choking, perform the Heimlich maneuver by giving abdominal thrusts.",
-    "For cuts, apply direct pressure to stop bleeding, then clean with water and mild soap."
-  ],
-  covid: [
-    "Common COVID-19 symptoms include fever, cough, and fatigue. If you're experiencing these, consider getting tested.",
-    "COVID-19 vaccines are effective at preventing severe illness, hospitalization, and death.",
-    "If you've been exposed to COVID-19, it's recommended to monitor for symptoms and follow local guidelines for testing."
-  ],
-  "sexual-health": [
-    "Regular STI testing is recommended for sexually active individuals.",
-    "Safe sex practices include using barrier methods like condoms to prevent STIs.",
-    "It's important to communicate openly with partners about sexual health."
-  ],
-  "maternal-health": [
-    "Prenatal vitamins with folic acid are recommended before and during pregnancy.",
-    "Regular prenatal check-ups are essential for monitoring both maternal and fetal health.",
-    "Breastfeeding provides important nutrients and antibodies to newborns."
-  ],
-  emergency: [
-    "If someone is experiencing chest pain or difficulty breathing, call emergency services immediately.",
-    "For suspected stroke, remember FAST: Face drooping, Arm weakness, Speech difficulties, Time to call emergency services.",
-    "In case of severe bleeding, apply direct pressure and elevate the affected area while seeking emergency care."
-  ]
-};
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from '@/lib/supabase';
 
 type Message = {
   id: string;
@@ -65,17 +27,14 @@ const ChatInterface = ({ category = "general" }: ChatInterfaceProps) => {
   
   // Simulate initial AI message when chat starts
   useEffect(() => {
-    const categoryKey = category as keyof typeof mockResponses;
-    const initialMessage = mockResponses[categoryKey]?.[0] || mockResponses.general[0];
+    const initialMessage = {
+      id: "welcome",
+      text: `Hello! I'm your HealthMate AI assistant. How can I help you with ${category === "general" ? "your health questions" : category.replace('-', ' ') + " related questions"}?`,
+      sender: "ai",
+      timestamp: new Date(),
+    };
     
-    setMessages([
-      {
-        id: "welcome",
-        text: initialMessage,
-        sender: "ai",
-        timestamp: new Date(),
-      },
-    ]);
+    setMessages([initialMessage]);
   }, [category]);
 
   // Scroll to bottom of chat when messages change
@@ -83,14 +42,15 @@ const ChatInterface = ({ category = "general" }: ChatInterfaceProps) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!input.trim()) return;
     
     // Add user message
+    const userMessageId = Date.now().toString();
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: userMessageId,
       text: input,
       sender: "user",
       timestamp: new Date(),
@@ -102,22 +62,48 @@ const ChatInterface = ({ category = "general" }: ChatInterfaceProps) => {
     // Simulate AI typing
     setIsTyping(true);
     
-    // Simulate AI response after a delay
-    setTimeout(() => {
-      const categoryKey = category as keyof typeof mockResponses;
-      const responsePool = mockResponses[categoryKey] || mockResponses.general;
-      const randomResponse = responsePool[Math.floor(Math.random() * responsePool.length)];
+    try {
+      // Call our AI function using Supabase Edge Function
+      // Note: This is a placeholder until we create the actual edge function
+      const { data, error } = await supabase.functions.invoke('chat-gpt', {
+        body: {
+          prompt: input,
+          category: category,
+        }
+      });
       
+      if (error) throw error;
+      
+      // Add AI response
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: randomResponse,
+        text: data?.generatedText || "I'm sorry, I couldn't process your request at this time.",
         sender: "ai",
         timestamp: new Date(),
       };
       
       setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Error calling AI:', error);
+      
+      // Fallback message if the API call fails
+      const fallbackMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm having trouble connecting to my knowledge base right now. Please try again in a moment.",
+        sender: "ai",
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, fallbackMessage]);
+      
+      toast({
+        title: "Connection error",
+        description: "Could not connect to the AI service. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const formatTime = (date: Date) => {

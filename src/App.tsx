@@ -14,6 +14,7 @@ import Services from "./pages/Services";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/services" element={<Services />} />
             <Route path="/help" element={<Help />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
